@@ -261,7 +261,7 @@ public class WebDavStore extends Store {
                 AuthType authenticationType, String username, String password, String clientCertificateAlias, String alias,
                 String path, String authPath, String mailboxPath) {
             super(STORE_TYPE, host, port, connectionSecurity, authenticationType, username,
-                    password, clientCertificateAlias);
+                    password, clientCertificateAlias,null);
             this.alias = alias;
             this.path = path;
             this.authPath = authPath;

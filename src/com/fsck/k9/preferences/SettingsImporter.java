@@ -988,6 +988,8 @@ public class SettingsImporter {
                     server.username = getText(xpp);
                 } else if (SettingsExporter.CLIENT_CERTIFICATE_ALIAS_ELEMENT.equals(element)) {
                     server.clientCertificateAlias = getText(xpp);
+                } else if (SettingsExporter.SERVER_CERTIFICATE_FINGERPRINT.equals(element)) {
+                	server.serverCertificateSHA1Fingerprint = getText(xpp);
                 } else if (SettingsExporter.PASSWORD_ELEMENT.equals(element)) {
                     server.password = getText(xpp);
                 } else if (SettingsExporter.EXTRA_ELEMENT.equals(element)) {
@@ -1103,7 +1105,7 @@ public class SettingsImporter {
             super(server.type, server.host, convertPort(server.port),
                     convertConnectionSecurity(server.connectionSecurity),
                     server.authenticationType, server.username, server.password,
-                    server.clientCertificateAlias);
+                    server.clientCertificateAlias, server.serverCertificateSHA1Fingerprint);
             mImportedServer = server;
         }
 
@@ -1169,6 +1171,7 @@ public class SettingsImporter {
         public String username;
         public String password;
         public String clientCertificateAlias;
+        public String serverCertificateSHA1Fingerprint;
         public ImportedSettings extras;
     }
 

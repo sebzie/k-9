@@ -422,9 +422,9 @@ public class AccountSetupBasics extends K9Activity
         // set default uris
         // NOTE: they will be changed again in AccountSetupAccountType!
         ServerSettings storeServer = new ServerSettings(ImapStore.STORE_TYPE, "mail." + domain, -1,
-                ConnectionSecurity.SSL_TLS_REQUIRED, authenticationType, user, password, clientCertificateAlias);
+                ConnectionSecurity.SSL_TLS_REQUIRED, authenticationType, user, password, clientCertificateAlias,null);
         ServerSettings transportServer = new ServerSettings(SmtpTransport.TRANSPORT_TYPE, "mail." + domain, -1,
-                ConnectionSecurity.SSL_TLS_REQUIRED, authenticationType, user, password, clientCertificateAlias);
+                ConnectionSecurity.SSL_TLS_REQUIRED, authenticationType, user, password, clientCertificateAlias,null);
         String storeUri = Store.createStoreUri(storeServer);
         String transportUri = Transport.createTransportUri(transportServer);
         mAccount.setStoreUri(storeUri);

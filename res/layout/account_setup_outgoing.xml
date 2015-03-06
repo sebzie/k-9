@@ -148,6 +148,36 @@
                 
             </LinearLayout>
             
+            
+            <CheckBox
+                android:id="@+id/account_only_trust_specific_certificate"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/account_only_trust_specific_certificate_label" />
+            
+            <LinearLayout
+                android:id="@+id/account_only_trust_specific_certificate_settings"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:text="@string/account_setup_trusted_server_certificate_label"
+                    android:layout_height="wrap_content"
+                    android:layout_width="fill_parent"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:textColor="?android:attr/textColorPrimary" />
+
+                <EditText
+                    android:id="@+id/account_server_certificate_hash"
+                    android:singleLine="true"
+                    android:inputType="textNoSuggestions"
+                    android:layout_height="wrap_content"
+                    android:layout_width="fill_parent"
+                    android:contentDescription="@string/account_setup_trusted_server_certificate_label" />
+               </LinearLayout>            
+            
             <View
                 android:layout_width="fill_parent"
                 android:layout_height="0dip"

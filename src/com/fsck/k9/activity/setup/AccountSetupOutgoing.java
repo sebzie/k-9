@@ -55,6 +55,9 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
     private int mCurrentSecurityTypeViewPosition;
     private Spinner mAuthTypeView;
     private int mCurrentAuthTypeViewPosition;
+    private EditText mServerCertificateHash;
+    private ViewGroup mOnlyTrustSpecificCertificateSettings;
+    private CheckBox mOnlyTrustSpecificCertificate;
     private ArrayAdapter<AuthType> mAuthTypeAdapter;
     private Button mNextButton;
     private Account mAccount;
@@ -109,6 +112,9 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
         mRequireClientCertificateSettingsView = (ViewGroup)findViewById(R.id.account_require_client_certificate_settings);
         mSecurityTypeView = (Spinner)findViewById(R.id.account_security_type);
         mAuthTypeView = (Spinner)findViewById(R.id.account_auth_type);
+        mServerCertificateHash = (EditText)findViewById(R.id.account_server_certificate_hash);
+        mOnlyTrustSpecificCertificateSettings = (ViewGroup)findViewById(R.id.account_only_trust_specific_certificate_settings);
+        mOnlyTrustSpecificCertificate = (CheckBox)findViewById(R.id.account_only_trust_specific_certificate);
         mNextButton = (Button)findViewById(R.id.next);
 
         mNextButton.setOnClickListener(this);
@@ -123,6 +129,12 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
          */
         mPortView.setKeyListener(DigitsKeyListener.getInstance("0123456789"));
 
+        /*
+         * Only allow hexadecimals in server certificate hash.
+         */        
+        //mServerCertificateHash.setKeyListener();
+        //TODO: implement sth for hexadecimal numbers
+        
         //FIXME: get Account object again?
         accountUuid = getIntent().getStringExtra(EXTRA_ACCOUNT);
         mAccount = Preferences.getPreferences(this).getAccount(accountUuid);
@@ -185,6 +197,12 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
                 updateViewFromConnectionSecurity();
             }
 
+            if (settings.serverCertificateSHA1Fingerprint != null) {
+            	mServerCertificateHash.setText(settings.serverCertificateSHA1Fingerprint);
+            	mOnlyTrustSpecificCertificate.setChecked(true);
+            	mOnlyTrustSpecificCertificateSettings.setVisibility(View.VISIBLE);
+            }
+            
             if (settings.host != null) {
                 mServerView.setText(settings.host);
             }
@@ -277,6 +295,19 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
             }
         });
         
+        mOnlyTrustSpecificCertificate.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			
+			@Override
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				mOnlyTrustSpecificCertificateSettings.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+				
+				if(isChecked) {
+					mServerCertificateHash.requestFocus();
+				}
+				
+			}
+		});
+        
         mRequireLoginView.setOnCheckedChangeListener(this);
         mClientCertificateSpinner.setOnClientCertificateChangedListener(clientCertificateChangedListener);
         mUsernameView.addTextChangedListener(validationTextWatcher);
@@ -351,10 +382,16 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
                 //do not show client certificate options if user does not need a client certificate
                 mRequireClientCertificateSettingsView.setVisibility(View.VISIBLE);
             }
+            mOnlyTrustSpecificCertificate.setVisibility(View.VISIBLE);
+            if(mOnlyTrustSpecificCertificate.isChecked()) {
+            	mOnlyTrustSpecificCertificateSettings.setVisibility(View.VISIBLE);
+            }
         }
         else {
             mRequireClientCertificateView.setVisibility(View.GONE);
             mRequireClientCertificateSettingsView.setVisibility(View.GONE);
+            mOnlyTrustSpecificCertificate.setVisibility(View.GONE);
+            mOnlyTrustSpecificCertificateSettings.setVisibility(View.GONE);
         }
     }
     
@@ -384,13 +421,16 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
         
         boolean hasValidCertificateClientCertificateSettings = hasConnectionSecurity
                 && hasValidCertificateAlias;
+        
+        boolean hasVaildServerCertificateFingerprint = Utility.requiredFieldValid(mServerCertificateHash);
 
         mNextButton
                 .setEnabled(Utility.domainFieldValid(mServerView)
                         && Utility.requiredFieldValid(mPortView)
                         && (!mRequireLoginView.isChecked()
                                 || hasValidPasswordSettings || isAuthTypeExternal)
-                        && (!mRequireClientCertificateView.isChecked() || hasValidCertificateClientCertificateSettings));
+                        && (!mRequireClientCertificateView.isChecked() || hasValidCertificateClientCertificateSettings)
+                        && (!mOnlyTrustSpecificCertificate.isChecked() || hasVaildServerCertificateFingerprint));
         Utility.setCompoundDrawablesAlpha(mNextButton, mNextButton.isEnabled() ? 255 : 128);
     }
 
@@ -453,6 +493,7 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
         String username = null;
         String password = null;
         String clientCertificateAlias = null;
+        String serverCertificateFingerprint = null;
         AuthType authType = null;
         if (mRequireLoginView.isChecked()) {
             username = mUsernameView.getText().toString();
@@ -468,11 +509,15 @@ public class AccountSetupOutgoing extends K9Activity implements OnClickListener,
         if(mRequireClientCertificateView.isChecked() && ConnectionSecurity.NONE != securityType) {
             clientCertificateAlias = mClientCertificateSpinner.getAlias();
         }
+        
+        if(mOnlyTrustSpecificCertificate.isChecked() && ConnectionSecurity.NONE != securityType) {
+        	serverCertificateFingerprint = mServerCertificateHash.getText().toString();
+        }
 
         String newHost = mServerView.getText().toString();
         int newPort = Integer.parseInt(mPortView.getText().toString());
         String type = SmtpTransport.TRANSPORT_TYPE;
-        ServerSettings server = new ServerSettings(type, newHost, newPort, securityType, authType, username, password, clientCertificateAlias);
+        ServerSettings server = new ServerSettings(type, newHost, newPort, securityType, authType, username, password, clientCertificateAlias, serverCertificateFingerprint);
         uri = Transport.createTransportUri(server);
         mAccount.deleteCertificate(newHost, newPort, CheckDirection.OUTGOING);
         mAccount.setTransportUri(uri);

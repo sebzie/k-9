@@ -332,7 +332,7 @@ public class ImapStore extends Store {
                 AuthType authenticationType, String username, String password, String clientCertificateAlias,
                 boolean autodetectNamespace, String pathPrefix) {
             super(STORE_TYPE, host, port, connectionSecurity, authenticationType, username,
-                    password, clientCertificateAlias);
+                    password, clientCertificateAlias, null);
             this.autoDetectNamespace = autodetectNamespace;
             this.pathPrefix = pathPrefix;
         }

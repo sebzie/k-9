@@ -141,7 +141,7 @@ public class Pop3Store extends Store {
         }
 
         return new ServerSettings(STORE_TYPE, host, port, connectionSecurity, authType, username,
-                password, clientCertificateAlias);
+                password, clientCertificateAlias, null);
     }
 
     /**

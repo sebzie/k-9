@@ -62,6 +62,7 @@ public class SettingsExporter {
     public static final String AUTHENTICATION_TYPE_ELEMENT = "authentication-type";
     public static final String USERNAME_ELEMENT = "username";
     public static final String CLIENT_CERTIFICATE_ALIAS_ELEMENT = "client-cert-alias";
+    public static final String SERVER_CERTIFICATE_FINGERPRINT = "server-cert-fingerprint";
     public static final String PASSWORD_ELEMENT = "password";
     public static final String EXTRA_ELEMENT = "extra";
     public static final String IDENTITIES_ELEMENT = "identities";
@@ -238,6 +239,7 @@ public class SettingsExporter {
         }
         writeElement(serializer, USERNAME_ELEMENT, incoming.username);
         writeElement(serializer, CLIENT_CERTIFICATE_ALIAS_ELEMENT, incoming.clientCertificateAlias);
+        writeElement(serializer, SERVER_CERTIFICATE_FINGERPRINT, incoming.serverCertificateSHA1Fingerprint);
         // XXX For now we don't export the password
         //writeElement(serializer, PASSWORD_ELEMENT, incoming.password);
 
@@ -270,6 +272,7 @@ public class SettingsExporter {
         }
         writeElement(serializer, USERNAME_ELEMENT, outgoing.username);
         writeElement(serializer, CLIENT_CERTIFICATE_ALIAS_ELEMENT, outgoing.clientCertificateAlias);
+        writeElement(serializer, SERVER_CERTIFICATE_FINGERPRINT, incoming.serverCertificateSHA1Fingerprint);
         // XXX For now we don't export the password
         //writeElement(serializer, PASSWORD_ELEMENT, outgoing.password);
 

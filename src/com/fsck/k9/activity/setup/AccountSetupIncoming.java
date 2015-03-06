@@ -555,7 +555,7 @@ public class AccountSetupIncoming extends K9Activity implements OnClickListener 
 
                     URI oldUri = new URI(mAccount.getTransportUri());
                     ServerSettings transportServer = new ServerSettings(SmtpTransport.TRANSPORT_TYPE, oldUri.getHost(), oldUri.getPort(),
-                            ConnectionSecurity.SSL_TLS_REQUIRED, authType, username, password, clientCertificateAlias);
+                            ConnectionSecurity.SSL_TLS_REQUIRED, authType, username, password, clientCertificateAlias,null);
                     String transportUri = Transport.createTransportUri(transportServer);
                     mAccount.setTransportUri(transportUri);
                 } catch (URISyntaxException use) {
@@ -608,7 +608,7 @@ public class AccountSetupIncoming extends K9Activity implements OnClickListener 
 
             mAccount.deleteCertificate(host, port, CheckDirection.INCOMING);
             ServerSettings settings = new ServerSettings(mStoreType, host, port,
-                    connectionSecurity, authType, username, password, clientCertificateAlias, extra);
+                    connectionSecurity, authType, username, password, clientCertificateAlias, null, extra);
 
             mAccount.setStoreUri(Store.createStoreUri(settings));
 

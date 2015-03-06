@@ -18,6 +18,8 @@ import com.fsck.k9.mail.store.LocalStore.LocalMessage;
 import com.fsck.k9.net.ssl.TrustedSocketFactory;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSocket;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -26,6 +28,9 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
 import java.util.*;
 
 public class SmtpTransport extends Transport {
@@ -36,9 +41,9 @@ public class SmtpTransport extends Transport {
      * 
      * <p>Possible forms:</p>
      * <pre>
-     * smtp://user:password:auth:clientcert@server:port ConnectionSecurity.NONE
-     * smtp+tls+://user:password:auth:clientcert@server:port ConnectionSecurity.STARTTLS_REQUIRED
-     * smtp+ssl+://user:password:auth:clientcert@server:port ConnectionSecurity.SSL_TLS_REQUIRED
+     * smtp://user:password:auth:clientcert:servercertSHA1fingerprint@server:port ConnectionSecurity.NONE
+     * smtp+tls+://user:password:auth:clientcert:servercertSHA1fingerprint@server:port ConnectionSecurity.STARTTLS_REQUIRED
+     * smtp+ssl+://user:password:auth:clientcert:servercertSHA1fingerprint@server:port ConnectionSecurity.SSL_TLS_REQUIRED
      * </pre>
      */
     public static ServerSettings decodeUri(String uri) {
@@ -49,6 +54,7 @@ public class SmtpTransport extends Transport {
         String username = null;
         String password = null;
         String clientCertificateAlias = null;
+        String serverCertificateSHA1Fingerprint = null;
 
         URI smtpUri;
         try {
@@ -115,7 +121,16 @@ public class SmtpTransport extends Transport {
                         password = URLDecoder.decode(userInfoParts[1], "UTF-8");
                     }
                     clientCertificateAlias = URLDecoder.decode(userInfoParts[3], "UTF-8");
+                } else if(userInfoParts.length == 5) {
+                    authType = AuthType.valueOf(userInfoParts[2]);
+                    username = URLDecoder.decode(userInfoParts[0], "UTF-8");
+                    if (authType != AuthType.EXTERNAL) {
+                        password = URLDecoder.decode(userInfoParts[1], "UTF-8");
+                    }
+                    clientCertificateAlias = URLDecoder.decode(userInfoParts[3], "UTF-8");
+                    serverCertificateSHA1Fingerprint = URLDecoder.decode(userInfoParts[4], "UTF-8");
                 }
+                
                 
             } catch (UnsupportedEncodingException enc) {
                 // This shouldn't happen since the encoding is hardcoded to UTF-8
@@ -124,7 +139,7 @@ public class SmtpTransport extends Transport {
         }
 
         return new ServerSettings(TRANSPORT_TYPE, host, port, connectionSecurity,
-                authType, username, password, clientCertificateAlias);
+                authType, username, password, clientCertificateAlias,serverCertificateSHA1Fingerprint);
     }
 
     /**
@@ -142,6 +157,7 @@ public class SmtpTransport extends Transport {
         String userEnc;
         String passwordEnc;
         String clientCertificateAliasEnc;
+        String serverCertificateSHA1Fingerprint;
         try {
             userEnc = (server.username != null) ?
                     URLEncoder.encode(server.username, "UTF-8") : "";
@@ -149,6 +165,8 @@ public class SmtpTransport extends Transport {
                     URLEncoder.encode(server.password, "UTF-8") : "";
             clientCertificateAliasEnc = (server.clientCertificateAlias != null) ?
                     URLEncoder.encode(server.clientCertificateAlias, "UTF-8") : "";
+            serverCertificateSHA1Fingerprint = (server.serverCertificateSHA1Fingerprint != null) ?
+            		URLEncoder.encode(server.serverCertificateSHA1Fingerprint, "UTF-8") : "";
         }
         catch (UnsupportedEncodingException e) {
             throw new IllegalArgumentException("Could not encode username or password", e);
@@ -173,12 +191,12 @@ public class SmtpTransport extends Transport {
         // NOTE: authType is append at last item, in contrast to ImapStore and Pop3Store!
         if (authType != null) {
             if (AuthType.EXTERNAL == authType) {
-                userInfo = userEnc + "::" + authType.name() + clientCertificateAliasEnc;
+                userInfo = userEnc + "::" + authType.name() + ":" + clientCertificateAliasEnc+ ":" + serverCertificateSHA1Fingerprint;
             } else {
-                userInfo = userEnc + ":" + passwordEnc + ":" + authType.name() + clientCertificateAliasEnc;
+                userInfo = userEnc + ":" + passwordEnc + ":" + authType.name() + ":" + clientCertificateAliasEnc + ":" + serverCertificateSHA1Fingerprint;
             }
         } else {
-            userInfo = userEnc + ":" + passwordEnc + ":"+ AuthType.NOAUTH.name() +":" + clientCertificateAliasEnc;
+            userInfo = userEnc + ":" + passwordEnc + ":"+ AuthType.NOAUTH.name() +":" + clientCertificateAliasEnc + ":" + serverCertificateSHA1Fingerprint;
         }
         try {
             return new URI(scheme, userInfo, server.host, server.port, null, null,
@@ -194,6 +212,7 @@ public class SmtpTransport extends Transport {
     String mUsername;
     String mPassword;
     String mClientCertificateAlias;
+    String mServerCertificateSHA1Fingerprint;
     AuthType mAuthType;
     ConnectionSecurity mConnectionSecurity;
     Socket mSocket;
@@ -219,6 +238,7 @@ public class SmtpTransport extends Transport {
         mUsername = settings.username;
         mPassword = settings.password;
         mClientCertificateAlias = settings.clientCertificateAlias;
+        mServerCertificateSHA1Fingerprint = settings.serverCertificateSHA1Fingerprint;
     }
 
     @Override
@@ -233,6 +253,8 @@ public class SmtpTransport extends Transport {
                         mSocket = TrustedSocketFactory.createSocket(mHost, mPort, mClientCertificateAlias);
                         mSocket.connect(socketAddress, SOCKET_CONNECT_TIMEOUT);
                         secureConnection = true;
+                        handleFingerprintPinning();
+                        
                     } else {
                         mSocket = new Socket();
                         mSocket.connect(socketAddress, SOCKET_CONNECT_TIMEOUT);
@@ -286,6 +308,7 @@ public class SmtpTransport extends Transport {
 
                     mSocket = TrustedSocketFactory.createSocket(mSocket, mHost, mPort,
                             mClientCertificateAlias);
+                    handleFingerprintPinning();
 
                     mIn = new PeekableInputStream(new BufferedInputStream(mSocket.getInputStream(),
                                                   1024));
@@ -782,7 +805,25 @@ public class SmtpTransport extends Transport {
                 String.format("AUTH EXTERNAL %s",
                         Utility.base64Encode(username)), false);
     }
-
+    
+    
+    private void handleFingerprintPinning() throws MessagingException {
+		// TODO: cleanup - strings shouldn t be hardcoded like this
+        try {
+        	if(mServerCertificateSHA1Fingerprint!=null 
+        			&& !TrustedSocketFactory.isServerCertificateSHA1FingerprintEqual(mSocket, mServerCertificateSHA1Fingerprint)) {
+        		throw new MessagingException("Pinned fingerprint and fingerprint of server certificate are NOT equal!", true);
+        	}
+		} catch (NoSuchAlgorithmException nsae) {
+			throw new MessagingException("Equality of pinned fingerprint and fingerprint of server certificate could not be established! NoSuchAlgorithmException", true);
+		} catch (CertificateEncodingException e) {
+			throw new MessagingException("Equality of pinned fingerprint and fingerprint of server certificate could not be established! CertificateEncodingException", true);
+		} catch (SSLPeerUnverifiedException e) {
+			throw new MessagingException("Equality of pinned fingerprint and fingerprint of server certificate could not be established! SSLPeerUnverifiedException", true);
+		}    	
+    }
+    
+    
     /**
      * Exception that is thrown when the server sends a negative reply (reply codes 4xx or 5xx).
      */

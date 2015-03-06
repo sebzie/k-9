@@ -7,6 +7,7 @@ import com.fsck.k9.mail.MessagingException;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
@@ -14,7 +15,9 @@ import javax.net.ssl.TrustManager;
 import java.io.IOException;
 import java.net.Socket;
 import java.security.KeyManagementException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -162,5 +165,31 @@ public class TrustedSocketFactory {
         if (ENABLED_PROTOCOLS != null) {
             sock.setEnabledProtocols(ENABLED_PROTOCOLS);
         }
+    }
+
+    //converts byte array to string containing hex digits
+    public static String binToHex(byte[] bytes) {
+    	char[] hexAlphabet = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    			'a', 'b', 'c', 'd', 'e', 'f'};
+    	StringBuffer buf = new StringBuffer(bytes.length * 2);
+
+        for (int i = 0; i < bytes.length; ++i) {
+        	buf.append(hexAlphabet[(bytes[i] & 0xf0) >> 4]);
+            buf.append(hexAlphabet[bytes[i] & 0x0f]);
+        }
+        return buf.toString();   	
+    }
+    
+    //gte the first peer certificate of the socket and compare its sha1 fingerprint with storedFingerprint
+    public static boolean isServerCertificateSHA1FingerprintEqual(Socket sock, String storedFingerprint) throws NoSuchAlgorithmException, CertificateEncodingException, SSLPeerUnverifiedException {
+    	if(sock != null && storedFingerprint != null) {
+	        MessageDigest md=MessageDigest.getInstance("SHA1");
+	        md.update(((SSLSocket)sock).getSession().getPeerCertificates()[0].getEncoded());
+	        //check if fingerprint of server certificate and the pinned fingerprint are the same
+	        if (storedFingerprint.compareToIgnoreCase(binToHex(md.digest())) == 0) {
+				return true;
+			}
+    	}
+    	return false;
     }
 }
